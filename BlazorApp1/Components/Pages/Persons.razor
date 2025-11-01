@@ -1,0 +1,60 @@
+@page "/persons"
+
+<h3>Persons</h3>
+
+<p class="lead">Manage a simple in-memory list of persons.</p>
+
+<div class="mb-3">
+    <input @bind="newName" class="form-control" placeholder="Full name" />
+</div>
+<button class="btn btn-primary mb-3" @onclick="AddPerson">Add Person</button>
+
+@if (persons.Count == 0)
+{
+    <p><em>No persons found.</em></p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th style="width:120px"></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var p in persons)
+            {
+                <tr>
+                    <td>@p.Name</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" @onclick="() => RemovePerson(p)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private string newName = string.Empty;
+    private List<Person> persons = new()
+    {
+        new("Alice"),
+        new("Bob")
+    };
+
+    private void AddPerson()
+    {
+        var name = (newName ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(name))
+            return;
+
+        persons.Add(new Person(name));
+        newName = string.Empty;
+    }
+
+    private void RemovePerson(Person p) => persons.Remove(p);
+
+    private sealed record Person(string Name);
+}

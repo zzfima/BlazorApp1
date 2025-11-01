@@ -1,15 +1,21 @@
 @page "/persons"
+@using BlazorApp1.Data
+@inject NavigationManager Navigation
 
 <h3>Persons</h3>
 
-<p class="lead">Manage a simple in-memory list of persons.</p>
+<p class="lead">Manage a simple SQLite-backed list of persons.</p>
 
 <div class="mb-3">
     <input @bind="newName" class="form-control" placeholder="Full name" />
 </div>
-<button class="btn btn-primary mb-3" @onclick="AddPerson">Add Person</button>
+<button class="btn btn-primary mb-3" @onclick="AddPersonAsync">Add Person</button>
 
-@if (persons.Count == 0)
+@if (isLoading)
+{
+    <p><em>Loading...</em></p>
+}
+else if (persons.Count == 0)
 {
     <p><em>No persons found.</em></p>
 }
@@ -28,7 +34,7 @@ else
                 <tr>
                     <td>@p.Name</td>
                     <td>
-                        <button class="btn btn-sm btn-danger" @onclick="() => RemovePerson(p)">Delete</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => RemovePersonAsync(p.Id)">Delete</button>
                     </td>
                 </tr>
             }
@@ -38,23 +44,37 @@ else
 
 @code {
     private string newName = string.Empty;
-    private List<Person> persons = new()
-    {
-        new("Alice"),
-        new("Bob")
-    };
+    private List<PersonEntity> persons = new();
+    private bool isLoading = true;
 
-    private void AddPerson()
+    protected override async Task OnInitializedAsync()
+    {
+        await PersonsRepository.InitializeAsync();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        persons = await PersonsRepository.GetAllAsync();
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task AddPersonAsync()
     {
         var name = (newName ?? string.Empty).Trim();
         if (string.IsNullOrEmpty(name))
             return;
 
-        persons.Add(new Person(name));
+        await PersonsRepository.AddAsync(name);
         newName = string.Empty;
+        await LoadAsync();
     }
 
-    private void RemovePerson(Person p) => persons.Remove(p);
-
-    private sealed record Person(string Name);
+    private async Task RemovePersonAsync(int id)
+    {
+        await PersonsRepository.RemoveAsync(id);
+        await LoadAsync();
+    }
 }

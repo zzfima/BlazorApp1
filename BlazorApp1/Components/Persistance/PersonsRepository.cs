@@ -11,6 +11,9 @@ public static class PersonsRepository
     private static string DbPath => Path.Combine(AppContext.BaseDirectory, "persons.db");
     private static string ConnectionString => $"Data Source={DbPath}";
 
+    // Expose path so the UI can show where the DB file actually is.
+    public static string DatabasePath => DbPath;
+
     public static async Task InitializeAsync()
     {
         // Ensure the SQLite native bundle is initialized so sqlite3 native library is available

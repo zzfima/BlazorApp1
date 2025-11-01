@@ -1,18 +1,28 @@
 @page "/persons"
 @using BlazorApp1.Data
 @using Microsoft.AspNetCore.Components.Forms
+@using System.Text.Json
 
 <h3>Persons</h3>
 
 <p class="lead">Manage a simple SQLite-backed list of persons.</p>
 
-<EditForm Model="newPerson" OnValidSubmit="AddPersonAsync">
+<p class="text-muted small">Database file: <code>@dbPath</code></p>
+@if (!string.IsNullOrEmpty(lastError))
+{
+    <div class="alert alert-danger">@lastError</div>
+}
+
+<EditForm Model="newPerson" OnValidSubmit="OnSubmit" FormName="PersonsForm">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
     <div class="row g-2 mb-3">
         <div class="col-md-3">
-            <InputText class="form-control" @bind-Value="newPerson.FirstName" placeholder="First name" />
+            <InputText class="form-control" @bind-Value="newPerson.FirstName" @bind-Value:event="oninput" placeholder="First name" />
         </div>
         <div class="col-md-3">
-            <InputText class="form-control" @bind-Value="newPerson.LastName" placeholder="Last name" />
+            <InputText class="form-control" @bind-Value="newPerson.LastName" @bind-Value:event="oninput" placeholder="Last name" />
         </div>
         <div class="col-md-2">
             <InputSelect class="form-select" @bind-Value="newPerson.Gender">
@@ -23,18 +33,23 @@
             </InputSelect>
         </div>
         <div class="col-md-2">
-            <InputDate class="form-control" @bind-Value="newPerson.Birthday" />
+            <InputDate @bind-Value="newPerson.Birthday" TValue="DateTime?" class="form-control" />
         </div>
         <div class="col-md-2">
-            <InputText class="form-control" @bind-Value="newPerson.City" placeholder="City" />
+            <InputText class="form-control" @bind-Value="newPerson.City" @bind-Value:event="oninput" placeholder="City" />
         </div>
         <div class="col-md-2 mt-2">
-            <InputText class="form-control" @bind-Value="newPerson.Country" placeholder="Country" />
+            <InputText class="form-control" @bind-Value="newPerson.Country" @bind-Value:event="oninput" placeholder="Country" />
         </div>
     </div>
 
     <button class="btn btn-primary mb-3" type="submit">Add Person</button>
 </EditForm>
+
+<div class="mb-3">
+    <strong>Model preview:</strong>
+    <pre class="small">@JsonSerializer.Serialize(newPerson, new JsonSerializerOptions { WriteIndented = true })</pre>
+</div>
 
 @if (isLoading)
 {
@@ -79,37 +94,81 @@ else
     private PersonEntity newPerson = new();
     private List<PersonEntity> persons = new();
     private bool isLoading = true;
+    private string dbPath = string.Empty;
+    private string lastError = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
-        await PersonsRepository.InitializeAsync();
-        await LoadAsync();
+        try
+        {
+            dbPath = PersonsRepository.DatabasePath;
+            await PersonsRepository.InitializeAsync();
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            lastError = $"Initialization error: {ex.Message}";
+        }
     }
 
     private async Task LoadAsync()
     {
-        isLoading = true;
-        persons = await PersonsRepository.GetAllAsync();
-        isLoading = false;
-        StateHasChanged();
+        try
+        {
+            isLoading = true;
+            persons = await PersonsRepository.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            lastError = $"Load error: {ex.Message}";
+            persons = new();
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    // OnSubmit receives EditContext; call AddPersonAsync after model is updated
+    private async Task OnSubmit(EditContext _)
+    {
+        await AddPersonAsync();
     }
 
     private async Task AddPersonAsync()
     {
+        lastError = string.Empty;
+
         // Basic validation: require first and last name
         if (string.IsNullOrWhiteSpace(newPerson.FirstName) || string.IsNullOrWhiteSpace(newPerson.LastName))
             return;
 
-        await PersonsRepository.AddAsync(newPerson);
+        try
+        {
+            await PersonsRepository.AddAsync(newPerson);
 
-        // reset form
-        newPerson = new PersonEntity();
-        await LoadAsync();
+            // reset form
+            newPerson = new PersonEntity();
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            lastError = $"Add error: {ex.Message}";
+        }
     }
 
     private async Task RemovePersonAsync(int id)
     {
-        await PersonsRepository.RemoveAsync(id);
-        await LoadAsync();
+        lastError = string.Empty;
+        try
+        {
+            await PersonsRepository.RemoveAsync(id);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            lastError = $"Remove error: {ex.Message}";
+        }
     }
 }

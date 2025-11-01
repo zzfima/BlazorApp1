@@ -1,15 +1,40 @@
 @page "/persons"
 @using BlazorApp1.Data
-@inject NavigationManager Navigation
+@using Microsoft.AspNetCore.Components.Forms
 
 <h3>Persons</h3>
 
 <p class="lead">Manage a simple SQLite-backed list of persons.</p>
 
-<div class="mb-3">
-    <input @bind="newName" class="form-control" placeholder="Full name" />
-</div>
-<button class="btn btn-primary mb-3" @onclick="AddPersonAsync">Add Person</button>
+<EditForm Model="newPerson" OnValidSubmit="AddPersonAsync">
+    <div class="row g-2 mb-3">
+        <div class="col-md-3">
+            <InputText class="form-control" @bind-Value="newPerson.FirstName" placeholder="First name" />
+        </div>
+        <div class="col-md-3">
+            <InputText class="form-control" @bind-Value="newPerson.LastName" placeholder="Last name" />
+        </div>
+        <div class="col-md-2">
+            <InputSelect class="form-select" @bind-Value="newPerson.Gender">
+                <option value="">Gender</option>
+                <option>Male</option>
+                <option>Female</option>
+                <option>Other</option>
+            </InputSelect>
+        </div>
+        <div class="col-md-2">
+            <InputDate class="form-control" @bind-Value="newPerson.Birthday" />
+        </div>
+        <div class="col-md-2">
+            <InputText class="form-control" @bind-Value="newPerson.City" placeholder="City" />
+        </div>
+        <div class="col-md-2 mt-2">
+            <InputText class="form-control" @bind-Value="newPerson.Country" placeholder="Country" />
+        </div>
+    </div>
+
+    <button class="btn btn-primary mb-3" type="submit">Add Person</button>
+</EditForm>
 
 @if (isLoading)
 {
@@ -25,6 +50,10 @@ else
         <thead>
             <tr>
                 <th>Name</th>
+                <th>Gender</th>
+                <th>Birthday</th>
+                <th>City</th>
+                <th>Country</th>
                 <th style="width:120px"></th>
             </tr>
         </thead>
@@ -32,7 +61,11 @@ else
             @foreach (var p in persons)
             {
                 <tr>
-                    <td>@p.Name</td>
+                    <td>@p.FullName</td>
+                    <td>@p.Gender</td>
+                    <td>@(p.Birthday.HasValue ? p.Birthday.Value.ToString("yyyy-MM-dd") : "")</td>
+                    <td>@p.City</td>
+                    <td>@p.Country</td>
                     <td>
                         <button class="btn btn-sm btn-danger" @onclick="() => RemovePersonAsync(p.Id)">Delete</button>
                     </td>
@@ -43,7 +76,7 @@ else
 }
 
 @code {
-    private string newName = string.Empty;
+    private PersonEntity newPerson = new();
     private List<PersonEntity> persons = new();
     private bool isLoading = true;
 
@@ -63,12 +96,14 @@ else
 
     private async Task AddPersonAsync()
     {
-        var name = (newName ?? string.Empty).Trim();
-        if (string.IsNullOrEmpty(name))
+        // Basic validation: require first and last name
+        if (string.IsNullOrWhiteSpace(newPerson.FirstName) || string.IsNullOrWhiteSpace(newPerson.LastName))
             return;
 
-        await PersonsRepository.AddAsync(name);
-        newName = string.Empty;
+        await PersonsRepository.AddAsync(newPerson);
+
+        // reset form
+        newPerson = new PersonEntity();
         await LoadAsync();
     }
 
